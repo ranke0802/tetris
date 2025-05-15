@@ -4,26 +4,183 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TETRIS 1.0 with HOLD + Soft Drop</title>
   <style>
-    body, html { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: #fff; }
-    #game { position: absolute; top: 12%; left: 50%; transform: translateX(-50%); }
-    #tetris { width: 150px; height: 300px; background: #111; display: block; }
-    #info { position: absolute; top: 10px; right: 10px; text-align: center; }
-    #next, #hold { background: #222; margin-top: 5px; }
-    #pause, #reset { margin-top: 10px; padding: 8px 16px; background: #666; color: #fff; border: none; border-radius: 5px; font-size: 14px; display: block; }
-    #controls { position: absolute; bottom: 20px; left: 20px; display: grid; grid-template-areas: ". up ." "left down right"; grid-template-columns: 60px 60px 60px; grid-template-rows: 60px 60px; gap: 5px; }
-    #controls button, #dropBtn, #holdBtn { width: 60px; height: 60px; font-size: 24px; background: #333; color: #fff; border: none; border-radius: 8px; }
-    #dropBtn { position: absolute; bottom: 20px; right: 20px; width: 70px; height: 70px; font-size: 28px; }
-    #holdBtn { position: absolute; bottom: 100px; right: 20px; width: 70px; height: 70px; font-size: 20px; }
-    #over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 32px; display: none; }
-    #over button { margin-top: 20px; padding: 10px 20px; background: #ff5555; color: white; border: none; border-radius: 8px; font-size: 20px; }
-    #comboText { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 32px; color: #ffffff; font-weight: bold; display: none; z-index: 10; }
-    #highscore { margin-top: 10px; font-size: 16px; color: #ff0; }
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #000;
+      font-family: sans-serif;
+      color: #fff;
+      overflow: hidden;
+      position: relative;
+    }#mainContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 120px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: start;
+  padding-top: 20px;
+}
+
+#game {
+  flex-shrink: 0;
+  border: 3px solid #444;
+  border-radius: 4px;
+}
+
+#tetris {
+  width: 200px;
+  height: 400px;
+  background: #111;
+  display: block;
+}
+
+#info {
+  margin-left: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+#next, #hold {
+  background: #222;
+  margin: 5px 0;
+  border: 2px solid #444;
+}
+
+.scoreBox {
+  border: 2px solid #666;
+  padding: 6px 10px;
+  margin-top: 10px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.buttonBox {
+  border: 2px solid #666;
+  padding: 10px 8px;
+  margin-top: 10px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#pause, #reset {
+  padding: 6px 14px;
+  background: #666;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 13px;
+}
+
+#controls {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  display: grid;
+  grid-template-areas:
+    ". up ."
+    "left down right";
+  grid-template-columns: 60px 60px 60px;
+  grid-template-rows: 60px 60px;
+  gap: 5px;
+}
+
+#controls button, #dropBtn, #holdBtn {
+  width: 60px;
+  height: 60px;
+  font-size: 24px;
+  background: #333;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+}
+
+#dropBtn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 70px;
+  height: 70px;
+  font-size: 28px;
+}
+
+#holdBtn {
+  position: absolute;
+  bottom: 100px;
+  right: 20px;
+  width: 70px;
+  height: 70px;
+  font-size: 20px;
+}
+
+#over {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 32px;
+  display: none;
+}
+
+#over button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background: #ff5555;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 20px;
+}
+
+#comboText {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  color: #ffffff;
+  font-weight: bold;
+  display: none;
+  z-index: 10;
+}
+
   </style>
 </head>
-<body><audio id="bgm1" src="tetris-theme.mp3" loop></audio>
-
-<div id="game">
-  <canvas id="tetris" width="150" height="300"></canvas>
+<body>
+<audio id="bgm1" src="tetris-theme.mp3" loop></audio>
+<div id="mainContainer">
+  <div id="game">
+    <canvas id="tetris" width="150" height="300"></canvas>
+  </div>
+  <div id="info">
+    <div>다음</div>
+    <canvas id="next" width="80" height="80"></canvas>
+    <div>보관</div>
+    <canvas id="hold" width="80" height="80"></canvas>
+    <div class="scoreBox">
+      <div id="score">점수: 0</div>
+      <div id="highscore">최고점수: 0</div>
+      <div id="level">레벨: 1</div>
+    </div>
+    <div class="buttonBox">
+      <button id="pause">일시정지</button>
+      <button id="reset">다시하기</button>
+    </div>
+  </div>
 </div>
 <div id="controls">
   <div></div><button id="up" style="grid-area: up;">↑</button><div></div>
@@ -33,22 +190,12 @@
 </div>
 <button id="holdBtn">HOLD</button>
 <button id="dropBtn">⇩</button>
-<div id="info">
-  <div>다음</div>
-  <canvas id="next" width="80" height="80"></canvas>
-  <div>보관</div>
-  <canvas id="hold" width="80" height="80"></canvas>
-  <div id="score">점수: 0</div>
-  <div id="highscore">최고점수: 0</div>
-  <div id="level">레벨: 1</div>
-  <button id="pause">일시정지</button>
-  <button id="reset">다시하기</button>
-</div>
 <div id="over">
   <div>Game Over!</div>
   <button onclick="location.reload()">다시하기</button>
 </div>
-<div id="comboText">COMBO!</div><script>
+<div id="comboText">COMBO!</div>
+<script>
 const c = tetris.getContext("2d");
 c.scale(15, 15);
 const n = next.getContext("2d");
@@ -89,5 +236,6 @@ pause.addEventListener("click",()=>{psd=!psd;pause.innerText=psd?"계속하기":
 reset.addEventListener("click",()=>{location.reload();});
 
 pr(); sc(); dh(); up();
-</script></body>
+</script>
+</body>
 </html>
