@@ -1,0 +1,93 @@
+<!DOCTYPE html><html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TETRIS 1.0 with HOLD + Soft Drop</title>
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: #fff; }
+    #game { position: absolute; top: 12%; left: 50%; transform: translateX(-50%); }
+    #tetris { width: 150px; height: 300px; background: #111; display: block; }
+    #info { position: absolute; top: 10px; right: 10px; text-align: center; }
+    #next, #hold { background: #222; margin-top: 5px; }
+    #pause, #reset { margin-top: 10px; padding: 8px 16px; background: #666; color: #fff; border: none; border-radius: 5px; font-size: 14px; display: block; }
+    #controls { position: absolute; bottom: 20px; left: 20px; display: grid; grid-template-areas: ". up ." "left down right"; grid-template-columns: 60px 60px 60px; grid-template-rows: 60px 60px; gap: 5px; }
+    #controls button, #dropBtn, #holdBtn { width: 60px; height: 60px; font-size: 24px; background: #333; color: #fff; border: none; border-radius: 8px; }
+    #dropBtn { position: absolute; bottom: 20px; right: 20px; width: 70px; height: 70px; font-size: 28px; }
+    #holdBtn { position: absolute; bottom: 100px; right: 20px; width: 70px; height: 70px; font-size: 20px; }
+    #over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 32px; display: none; }
+    #over button { margin-top: 20px; padding: 10px 20px; background: #ff5555; color: white; border: none; border-radius: 8px; font-size: 20px; }
+    #comboText { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 32px; color: #ffffff; font-weight: bold; display: none; z-index: 10; }
+    #highscore { margin-top: 10px; font-size: 16px; color: #ff0; }
+  </style>
+</head>
+<body><audio id="bgm1" src="tetris-theme.mp3" loop></audio>
+
+<div id="game">
+  <canvas id="tetris" width="150" height="300"></canvas>
+</div>
+<div id="controls">
+  <div></div><button id="up" style="grid-area: up;">↑</button><div></div>
+  <button id="left" style="grid-area: left;">←</button>
+  <button id="down" style="grid-area: down;">↓</button>
+  <button id="right" style="grid-area: right;">→</button>
+</div>
+<button id="holdBtn">HOLD</button>
+<button id="dropBtn">⇩</button>
+<div id="info">
+  <div>다음</div>
+  <canvas id="next" width="80" height="80"></canvas>
+  <div>보관</div>
+  <canvas id="hold" width="80" height="80"></canvas>
+  <div id="score">점수: 0</div>
+  <div id="highscore">최고점수: 0</div>
+  <div id="level">레벨: 1</div>
+  <button id="pause">일시정지</button>
+  <button id="reset">다시하기</button>
+</div>
+<div id="over">
+  <div>Game Over!</div>
+  <button onclick="location.reload()">다시하기</button>
+</div>
+<div id="comboText">COMBO!</div><script>
+const c = tetris.getContext("2d");
+c.scale(15, 15);
+const n = next.getContext("2d");
+n.scale(20, 20);
+const h = hold.getContext("2d");
+h.scale(20, 20);
+const a = Array.from({ length: 20 }, () => Array(10).fill(0));
+let p = { pos: { x: 0, y: 0 }, m: null, next: null, hold: null, score: 0, level: 1, combo: 0 };
+let dC = 0, dI = 1000, lT = 0, psd = 0, bgs = 0, canHold = true;
+let isTouching = false;
+let touchTimer = null;
+const bgms = [bgm1];
+let currentMusic = 0;
+
+function cp(t) { return { T:[[0,0,0],[1,1,1],[0,1,0]], O:[[2,2],[2,2]], L:[[0,3,0],[0,3,0],[0,3,3]], J:[[0,4,0],[0,4,0],[4,4,0]], I:[[0,0,0,0],[5,5,5,5],[0,0,0,0],[0,0,0,0]], S:[[0,6,6],[6,6,0],[0,0,0]], Z:[[7,7,0],[0,7,7],[0,0,0]] }[t]; }
+function cl(a, p) { for (let y=0; y<p.m.length; y++) for (let x=0; x<p.m[y].length; x++) if (p.m[y][x] && (a[y+p.pos.y]?.[x+p.pos.x] !== 0)) return 1; return 0; }
+function mg(a, p) { p.m.forEach((r, y) => r.forEach((v, x) => v && (a[y+p.pos.y][x+p.pos.x] = v))); }
+function rt(m, d) { for (let y=0; y<m.length; y++) for (let x=0; x<y; x++) [m[x][y], m[y][x]] = [m[y][x], m[x][y]]; d>0 ? m.forEach(r=>r.reverse()) : m.reverse(); }
+function pr() { p.m = p.next || cp("TJLOSZI"[(Math.random() * 7) | 0]); p.next = cp("TJLOSZI"[(Math.random() * 7) | 0]); p.pos.y = 0; p.pos.x = (10/2|0) - (p.m[0].length/2|0); canHold = true; isTouching = false; if (cl(a, p)) return gameOver(); dn(); }
+function dn() { n.fillStyle = "#222"; n.fillRect(0, 0, 4, 4); p.next.forEach((r, y) => r.forEach((v, x) => { if(v){ n.fillStyle=`hsl(${v*45},80%,60%)`; n.fillRect(x+1,y+1,1,1); } })); }
+function dh() { h.fillStyle = "#222"; h.fillRect(0, 0, 4, 4); if (p.hold) { p.hold.forEach((r, y) => r.forEach((v, x) => { if(v){ h.fillStyle=`hsl(${v*45},80%,60%)`; h.fillRect(x+1,y+1,1,1); } })); } }
+function pD() { p.pos.y++; if (cl(a, p)) { p.pos.y--; if (!isTouching) { isTouching = true; touchTimer = setTimeout(() => { mg(a, p); sw(); pr(); sc(); isTouching = false; }, 300); } } else { if (isTouching) { clearTimeout(touchTimer); isTouching = false; } } dC = 0; }
+function pM(d) { p.pos.x+=d; if(cl(a,p)){p.pos.x-=d;} else if (isTouching) { clearTimeout(touchTimer); isTouching = false; } }
+function pR() { let pos=p.pos.x,off=1; rt(p.m,1); while(cl(a,p)){p.pos.x+=off; off=-(off+(off>0?1:-1)); if(off>p.m[0].length){rt(p.m,-1);p.pos.x=pos;return;} } if (isTouching) { clearTimeout(touchTimer); isTouching = false; } }
+function pHD() { while(!cl(a,p)) p.pos.y++; p.pos.y--; mg(a,p); sw(); pr(); sc(); dC=0; }
+function holdPiece() { if (!canHold) return; if (p.hold) { [p.m, p.hold] = [p.hold, p.m]; p.pos.y = 0; p.pos.x = (10/2|0) - (p.m[0].length/2|0); } else { p.hold = p.m; pr(); } dh(); canHold = false; }
+function sw() { let lines = 0; for (let y=a.length-1; y>=0;){ if(a[y].every(v=>v!==0)){ a.splice(y,1); a.unshift(Array(10).fill(0)); lines++; }else{y--;} } if (lines>0){ p.combo++; p.score+=lines*10*p.combo; showCombo(); if(p.score>=p.level*100){p.level++;dI*=0.85;} }else{p.combo=0;} }
+function sc() { score.innerText="점수: "+p.score; level.innerText="레벨: "+p.level; const hs=Math.max(p.score,+(localStorage.highscore||0)); highscore.innerText="최고점수: "+hs; localStorage.highscore=hs; }
+function dr() { c.fillStyle="#000"; c.fillRect(0,0,10,20); c.strokeStyle="#333"; c.lineWidth=0.03; for(let y=0;y<=20;y++){c.beginPath();c.moveTo(0,y);c.lineTo(10,y);c.stroke();} for(let x=0;x<=10;x++){c.beginPath();c.moveTo(x,0);c.lineTo(x,20);c.stroke();} a.forEach((r,y)=>r.forEach((v,x)=>{if(v){c.fillStyle=`hsl(${v*45},80%,50%)`;c.fillRect(x,y,1,1);c.strokeStyle="#555";c.lineWidth=0.05;c.strokeRect(x,y,1,1);}})); p.m.forEach((r,y)=>r.forEach((v,x)=>{if(v){c.fillStyle=`hsl(${v*45},80%,70%)`;c.fillRect(p.pos.x+x,p.pos.y+y,1,1);c.strokeStyle="#555";c.lineWidth=0.05;c.strokeRect(p.pos.x+x,p.pos.y+y,1,1);}})); }
+function up(t=0) { if(!psd){ let dt=t-lT; lT=t; dC+=dt; dC>dI&&pD(); dr(); } requestAnimationFrame(up); }
+function gameOver() { over.style.display="flex"; stopMusic(); }
+function showCombo() { if(p.combo>1){ const text=document.getElementById("comboText"); text.innerText=`COMBO x${p.combo}`; text.style.display="block"; clearTimeout(text.timer); text.timer=setTimeout(()=>{text.style.display="none";},1000); } }
+function playMusic() { bgms[currentMusic].play().catch(()=>{}); }
+function stopMusic() { bgms.forEach(b=>{b.pause();b.currentTime=0;}); }
+["left","right","down","up","dropBtn"].forEach(id=>{ let btn=document.getElementById(id),itv; btn.addEventListener("touchstart",e=>{ e.preventDefault(); id=="left"?pM(-1):id=="right"?pM(1):id=="down"?pD():id=="up"?pR():pHD(); itv=setInterval(()=>{id=="left"?pM(-1):id=="right"?pM(1):id=="down"?pD():id=="up"?pR():pHD();},150); if(!bgs){playMusic();bgs=1;} }); btn.addEventListener("touchend",()=>clearInterval(itv)); });
+holdBtn.addEventListener("touchstart",e=>{e.preventDefault();holdPiece();});
+pause.addEventListener("click",()=>{psd=!psd;pause.innerText=psd?"계속하기":"일시정지";});
+reset.addEventListener("click",()=>{location.reload();});
+
+pr(); sc(); dh(); up();
+</script></body>
+</html>
